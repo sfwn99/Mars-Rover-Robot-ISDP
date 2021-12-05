@@ -22,6 +22,7 @@ import sys
 import time
 from threading import Thread
 import importlib.util
+import util as ut
 
 winmidx=320
 winmidy=240
@@ -67,7 +68,20 @@ class VideoStream:
     def stop(self):
 	# Indicate that the camera and thread should be stopped
         self.stopped = True
+        
+def move_robot():
+    global x_deviation
+    if (x_deviation > 15):
+        ut.motor.rotr(30,5)
+        ut.motor.stop(5)
+    elif (x_deviation>-15)and(x_deviation<15):
+        ut.motor.stop(1)
+    else:
+        ut.motor.rotl(30,5)
+        ut.motor.stop(5)
+        
 
+             
 
 MODEL_NAME = 'chun_model'
 GRAPH_NAME = 'detect.tflite'
@@ -145,8 +159,16 @@ freq = cv2.getTickFrequency()
 videostream = VideoStream(resolution=(imW,imH),framerate=30).start()
 time.sleep(1)
 
+x_deviation = 0
+y_deviation = 0
+
+
+
 #for frame1 in camera.capture_continuous(rawCapture, format="bgr",use_video_port=True):
 while True:
+    thread = Thread(target = move_robot)
+    thread.start()
+    
 
     # Start timer (for calculating frame rate)
     t1 = cv2.getTickCount()
@@ -200,6 +222,20 @@ while True:
             x_deviation = round(obj_x_center - winmidx , 3)
             y_deviation = round(obj_y_center - winmidy , 3)
             
+            if (x_deviation > 15):
+                actx = 'X : Right'
+            elif (x_deviation>-15)and(x_deviation<15):
+                actx = 'X : Aligned'
+            else:
+                actx = 'X : Left'
+                
+            if (y_deviation > 15):
+                acty = 'Y : Reverse'
+            elif (y_deviation>-15)and(y_deviation<15):
+                acty = 'Y : Aligned'
+            else:
+                acty = 'Y : Forward'
+            
             cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
 
             # Draw label
@@ -225,6 +261,12 @@ while True:
                           cv2.FILLED)
             cv2.putText(frame, devlabel, (xmin, label_ymax + 23), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0),
                         2)
+            
+            #Action labelling
+            cv2.putText(frame, actx, (400, 30), cv2.FONT_HERSHEY_SIMPLEX,0.8, (255,255,0),
+                        2,cv2.LINE_AA)
+            cv2.putText(frame, acty, (400, 50), cv2.FONT_HERSHEY_SIMPLEX,0.8, (255,255,0),
+                        2,cv2.LINE_AA)
 
     # Draw framerate in corner of frame
     cv2.putText(frame,'FPS: {0:.2f}'.format(frame_rate_calc),(30,50),cv2.FONT_HERSHEY_SIMPLEX,1,(255,255,0),2,cv2.LINE_AA)
