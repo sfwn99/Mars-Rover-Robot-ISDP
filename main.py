@@ -1,8 +1,7 @@
 ######## Webcam Object Detection Using Tensorflow-trained Classifier #########
 #
-# Author: Evan Juras
+# Original Author: Evan Juras ( Edje Electronics )
 # Date: 10/27/19
-# Description: 
 # This program uses a TensorFlow Lite model to perform object detection on a live webcam
 # feed. It draws boxes and scores around the objects of interest in each frame from the
 # webcam. To improve FPS, the webcam object runs in a separate thread from the main program.
@@ -12,6 +11,10 @@
 # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/lite/examples/python/label_image.py
 #
 # I added my own method of drawing boxes and labels using OpenCV.
+
+# ISDP Author : Safwan
+# Date: 8/12/21
+# Description: I modified the code written by Evan Juras to meet the project requirement.
 
 # Import packages
 import os
@@ -72,12 +75,15 @@ class VideoStream:
 def move_robot():
     global x_deviation
     if (x_deviation > 15):
-        ut.motor.rotr(30,5)
+        ut.motor.rotr(100,5)
         ut.motor.stop(5)
     elif (x_deviation>-15)and(x_deviation<15):
+	ut.servo.opens()
+	ut.motor.moveF(100,0.5)
         ut.motor.stop(1)
+	ut.servo.closes()
     else:
-        ut.motor.rotl(30,5)
+        ut.motor.rotl(100,5)
         ut.motor.stop(5)
         
 
@@ -166,8 +172,9 @@ y_deviation = 0
 
 #for frame1 in camera.capture_continuous(rawCapture, format="bgr",use_video_port=True):
 while True:
-    thread = Thread(target = move_robot)
+    thread = Thread(target = move_robot) # Start move_robot thread
     thread.start()
+ 
     
 
     # Start timer (for calculating frame rate)
@@ -199,7 +206,7 @@ while True:
 
     # Loop over all detections and draw detection box if confidence is above minimum threshold
     for i in range(len(scores)):
-        if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0)):
+        if ((scores[i] > min_conf_threshold) and (scores[i] <= 1.0) and (classes[i]==0) or (classes[i]==1)):
 
             # Get bounding box coordinates and draw box
             # Interpreter can return coordinates that are outside of image dimensions, need to force them to be within image using max() and min()
@@ -210,7 +217,6 @@ while True:
             
             x_deviation = 0
             y_deviation = 0
-            arr_track_data = [0, 0, 0, 0, 0, 0]
             x_diff = xmax - xmin
             y_diff = ymax - ymin
 
@@ -221,20 +227,22 @@ while True:
 
             x_deviation = round(obj_x_center - winmidx , 3)
             y_deviation = round(obj_y_center - winmidy , 3)
-            
+	    
+	    #thread.join  ( supposedly to add this on the robot but it cause a huge FPS drops and inferencing time for object detection )
+           
             if (x_deviation > 15):
                 actx = 'X : Right'
             elif (x_deviation>-15)and(x_deviation<15):
                 actx = 'X : Aligned'
             else:
-                actx = 'X : Left'
-                
+                actx = 'X : Left'    
             if (y_deviation > 15):
                 acty = 'Y : Reverse'
             elif (y_deviation>-15)and(y_deviation<15):
                 acty = 'Y : Aligned'
             else:
                 acty = 'Y : Forward'
+	
             
             cv2.rectangle(frame, (xmin,ymin), (xmax,ymax), (10, 255, 0), 2)
 
@@ -245,7 +253,7 @@ while True:
             label_ymin = max(ymin, labelSize[1] + 10) # Make sure not to draw label too close to top of window
             cv2.rectangle(frame, (xmin, label_ymin-labelSize[1]-10), (xmin+labelSize[0], label_ymin+baseLine-10), (255, 255, 255), cv2.FILLED) # Draw white box to put label text in
             cv2.putText(frame, label, (xmin, label_ymin-7), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2) # Draw label text
-            devlabel= '%d,%d'%(x_deviation,y_deviation)
+            devlabel= '%d,%d'%(x_deviation,y_deviation) # Storing deviations value to display it on overlay
             devlabelSize, devbaseLine = cv2.getTextSize(devlabel, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
             label_ymax = max(ymax, labelSize[1] + 10)
             # Make sure not to draw label too close to top of window
